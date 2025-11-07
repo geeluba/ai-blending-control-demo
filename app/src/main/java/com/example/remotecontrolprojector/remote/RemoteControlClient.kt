@@ -3,40 +3,42 @@ package com.example.remotecontrolprojector.remote
 import android.util.Log
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.websocket.WebSockets // <-- Explicit import for WebSockets
-import io.ktor.client.plugins.websocket.webSocket // <-- Explicit import for the .webSocket function
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.websocket.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Connects to the [RemoteControlServer] via WebSockets to send playback
  * commands and receive state updates.
+ *
+ * This client is designed to be robust, automatically retrying connections
+ * if they are lost.
  */
 class RemoteControlClient(private val managerScope: CoroutineScope) {
 
     private val TAG = "Projector:RemoteClient"
     private val REMOTE_CONTROL_PORT = 9877
+    private val CONNECTION_RETRY_DELAY_MS = 5000L
 
     enum class ConnectionState {
         DISCONNECTED,
         CONNECTING,
         CONNECTED,
-        ERROR
+        ERROR // Error is a temporary state before retrying
     }
 
     // --- (Internal State) ---
     private var connectJob: Job? = null
+    private var host: String? = null
 
     @Volatile
     private var clientSession: WebSocketSession? = null
@@ -55,85 +57,116 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
 
     // --- (Ktor & Serialization Setup) ---
 
-    /**
-     * The Ktor HttpClient with the WebSockets plugin installed.
-     */
     private val httpClient = HttpClient(CIO) {
-        install(WebSockets) // This will now resolve
+        install(WebSockets)
     }
 
-    /**
-     * The JSON serializer, configured to match the server.
-     * The `classDiscriminator` is critical for polymorphism.
-     */
     private val json = Json {
         ignoreUnknownKeys = true
         classDiscriminator = "commandType"
     }
 
     /**
-     * Attempts to connect to the remote control server.
+     * Starts the client's connection loop to connect to the remote server.
+     * The client will automatically handle disconnects and retry.
      *
      * @param host The IP address of the device running the [RemoteControlServer].
      */
     fun connect(host: String) {
-        if (_connectionState.value == ConnectionState.CONNECTING || _connectionState.value == ConnectionState.CONNECTED) {
-            Log.d(TAG, "Already connecting or connected.")
+        if (connectJob?.isActive == true) {
+            Log.d(TAG, "Connection loop is already running.")
             return
         }
+        this.host = host
+        startConnectLoop()
+    }
 
+    /**
+     * Starts the main auto-retry connection loop.
+     */
+    private fun startConnectLoop() {
+        connectJob?.cancel() // Cancel any previous loop
         connectJob = managerScope.launch(Dispatchers.IO) {
-            _connectionState.value = ConnectionState.CONNECTING
-            try {
-                Log.d(TAG, "Connecting to remote server at $host:$REMOTE_CONTROL_PORT...")
-                httpClient.webSocket(
-                    host = host,
-                    port = REMOTE_CONTROL_PORT,
-                    path = "/remote"
-                ) {
-                    _connectionState.value = ConnectionState.CONNECTED
-                    clientSession = this
-                    Log.i(TAG, "Successfully connected to remote server.")
+            while (isActive) {
+                try {
+                    // 1. Set state to CONNECTING
+                    _connectionState.value = ConnectionState.CONNECTING
+                    val currentHost = host ?: throw IllegalStateException("Host is not set")
+                    Log.d(
+                        TAG,
+                        "Connecting to remote server at $currentHost:$REMOTE_CONTROL_PORT..."
+                    )
 
-                    // Start listening for incoming messages
-                    for (frame in incoming) {
-                        if (frame is Frame.Text) {
-                            val text = frame.readText()
-                            handleServerMessage(text)
+                    // 2. Attempt to connect and listen
+                    httpClient.webSocket(
+                        host = currentHost,
+                        port = REMOTE_CONTROL_PORT,
+                        path = "/remote"
+                    ) {
+                        // --- Connected ---
+                        _connectionState.value = ConnectionState.CONNECTED
+                        Log.i(TAG, "Successfully connected to remote server.")
+
+                        // Store session safely
+                        clientMutex.withLock { clientSession = this }
+
+                        // Start listening for incoming messages
+                        for (frame in incoming) {
+                            if (frame is Frame.Text) {
+                                val text = frame.readText()
+                                handleServerMessage(text)
+                            }
                         }
                     }
-                }
-            } catch (e: Exception) {
-                if (isActive) {
-                    Log.e(TAG, "Connection failed: ${e.message}")
-                    _connectionState.value = ConnectionState.ERROR
-                }
-            } finally {
-                Log.d(TAG, "WebSocket session ended.")
-                if (_connectionState.value != ConnectionState.DISCONNECTED) {
-                    // This block runs on disconnect, error, or cancellation
-                    disconnect()
+
+                } catch (e: Exception) {
+                    if (e is CancellationException) {
+                        Log.i(TAG, "Connection loop cancelled.")
+                        throw e // Re-throw to stop the loop
+                    }
+                    if (isActive) {
+                        Log.e(TAG, "Connection failed: ${e.message}")
+                        _connectionState.value = ConnectionState.ERROR
+                    }
+                } finally {
+                    // --- Disconnected ---
+                    Log.d(TAG, "WebSocket session ended.")
+
+                    // Clear session safely
+                    clientMutex.withLock { clientSession = null }
+
+                    // If the loop is still active (not manually disconnected),
+                    // wait and then retry.
+                    if (isActive && _connectionState.value != ConnectionState.DISCONNECTED) {
+                        Log.i(TAG, "Retrying in $CONNECTION_RETRY_DELAY_MS ms...")
+                        delay(CONNECTION_RETRY_DELAY_MS)
+                    }
                 }
             }
         }
     }
 
+
     /**
-     * Disconnects from the server and resets the state.
+     * Disconnects from the server, sets the state, and stops the retry loop.
      */
     fun disconnect() {
         if (_connectionState.value == ConnectionState.DISCONNECTED) return
 
         Log.d(TAG, "Disconnecting from remote server...")
+        _connectionState.value = ConnectionState.DISCONNECTED
+
+        // Cancel the main connection loop
         connectJob?.cancel()
         connectJob = null
 
+        // Force-close the current session
         managerScope.launch {
-            clientSession?.close()
-            clientSession = null
+            clientMutex.withLock {
+                clientSession?.close()
+                clientSession = null
+            }
         }
-
-        _connectionState.value = ConnectionState.DISCONNECTED
     }
 
     /**
@@ -164,63 +197,54 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
      * A thread-safe, private helper to send any [RemoteCommand] to the server.
      */
     private fun send(command: RemoteCommand) {
-        if (_connectionState.value != ConnectionState.CONNECTED) {
-            Log.w(TAG, "Cannot send command, not connected.")
-            return
-        }
-
+        // Don't check state. Just try to send.
+        // If the session is null, the lock will handle it.
         managerScope.launch {
             clientMutex.withLock {
+                if (clientSession == null) {
+                    Log.w(TAG, "Cannot send command, session is null.")
+                    return@launch
+                }
+
                 try {
                     val jsonString = json.encodeToString(RemoteCommand.serializer(), command)
                     clientSession?.send(Frame.Text(jsonString))
                     Log.d(TAG, "Sent command: $jsonString")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to send command: ${e.message}", e)
-                    // Trigger a disconnect/error state
-                    _connectionState.value = ConnectionState.ERROR
+                    // On send error, close the session.
+                    // This will trigger the `finally` block in connectLoop
+                    // and start a reconnect.
+                    clientSession?.close(
+                        CloseReason(
+                            CloseReason.Codes.INTERNAL_ERROR,
+                            "Send failed"
+                        )
+                    )
+                    clientSession = null
                 }
             }
         }
     }
 
-    // --- Public API for Sending Commands ---
+    // --- Public API for Sending Commands (Unchanged) ---
 
-    /**
-     * Asks the server for its current video info (duration, position, play state).
-     * The server will respond with a [RemoteMessage.GetVideoInfoResponse].
-     */
     fun getVideoInfo() {
         send(RemoteCommand.GetVideoInfoRequest)
     }
 
-    /**
-     * Asks the server for its current video duration.
-     * The server will respond with a [RemoteMessage.GetVideoDurationResponse].
-     */
     fun getVideoDuration() {
         send(RemoteCommand.GetVideoDurationRequest)
     }
 
-    /**
-     * Tells the server to execute a 'PLAY' command.
-     */
     fun sendPlay() {
         send(RemoteCommand.VideoPlayRequest)
     }
 
-    /**
-     * Tells the server to execute a 'PAUSE' command.
-     */
     fun sendPause() {
         send(RemoteCommand.VideoPauseRequest)
     }
 
-    /**
-     * Tells the server to execute a 'SEEK' command to a specific position.
-     *
-     * @param positionMs The target position in milliseconds.
-     */
     fun sendSeek(positionMs: Long) {
         send(RemoteCommand.VideoSeekRequest(positionMs))
     }

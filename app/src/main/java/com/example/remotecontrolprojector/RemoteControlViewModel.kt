@@ -16,7 +16,7 @@ class RemoteControlViewModel : ViewModel() {
     private val TAG = "Projector:RemoteVM"
 
     // !!! IMPORTANT: Update this IP to your server device !!!
-    private val serverIp = "172.25.112.168"
+    private val serverIp = "172.25.112.181"
 
     // The Ktor WebSocket client
     private val remoteClient = RemoteControlClient(viewModelScope)
@@ -57,7 +57,7 @@ class RemoteControlViewModel : ViewModel() {
         // Observe incoming messages from the server
         remoteClient.eventFlow
             .onEach { message ->
-                Log.d(TAG, "Received message: $message")
+                //Log.d(TAG, "Received message: $message")
                 when (message) {
                     is RemoteMessage.GetVideoInfoResponse -> {
                         _durationMs.value = message.durationMs
@@ -76,6 +76,25 @@ class RemoteControlViewModel : ViewModel() {
 
                     is RemoteMessage.NotifyVideoPlayState -> {
                         _isPlaying.value = message.isPlaying
+                    }
+
+                    is RemoteMessage.ErrorResponse -> {
+                        if (message.errorCode != RemoteMessage.RemoteErrorCode.NO_ERROR) {
+                            Log.e(
+                                TAG,
+                                "Received error from server: ${message.errorCode} " +
+                                        "for request: ${message.errorCode}"
+                            )
+                            //todo: Handle errors appropriately in the UI
+                        } else {
+                            // NO_ERROR is just a success ACK
+                            //how to print simple name of message.command
+
+                            Log.d(
+                                TAG,
+                                "Received Successful for command: ${message.command?.javaClass?.simpleName}"
+                            )
+                        }
                     }
                 }
             }
