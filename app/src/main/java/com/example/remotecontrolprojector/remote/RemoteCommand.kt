@@ -9,26 +9,29 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed class RemoteCommand {
 
+    abstract val requestId: String
+
     // --- Info Requests ---
     @Serializable
     @SerialName("GetVideoInfoRequest")
-    object GetVideoInfoRequest : RemoteCommand()
+    data class GetVideoInfoRequest(override val requestId: String) : RemoteCommand()
 
     @Serializable
     @SerialName("GetVideoDurationRequest")
-    object GetVideoDurationRequest : RemoteCommand()
+    data class GetVideoDurationRequest(override val requestId: String) : RemoteCommand()
 
 
     // --- Playback Commands ---
     @Serializable
     @SerialName("VideoPlayRequest")
-    object VideoPlayRequest : RemoteCommand()
+    data class VideoPlayRequest(override val requestId: String) : RemoteCommand()
 
     @Serializable
     @SerialName("VideoPauseRequest")
-    object VideoPauseRequest : RemoteCommand()
+    data class VideoPauseRequest(override val requestId: String) : RemoteCommand()
 
     @Serializable
     @SerialName("VideoSeekRequest")
-    data class VideoSeekRequest(val positionMs: Long) : RemoteCommand()
+    data class VideoSeekRequest(override val requestId: String, val positionMs: Long) :
+        RemoteCommand()
 }

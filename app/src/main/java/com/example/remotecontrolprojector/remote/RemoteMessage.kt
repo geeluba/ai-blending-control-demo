@@ -12,8 +12,6 @@ sealed class RemoteMessage {
     @Serializable
     enum class RemoteErrorCode {
 
-        NO_ERROR,
-
         /** Command JSON was malformed or couldn't be deserialized. */
         COMMAND_PARSE_ERROR,
 
@@ -30,6 +28,7 @@ sealed class RemoteMessage {
     @Serializable
     @SerialName("GetVideoInfoResponse")
     data class GetVideoInfoResponse(
+        val requestId: String,
         val durationMs: Long,
         val positionMs: Long,
         val isPlaying: Boolean,
@@ -37,12 +36,24 @@ sealed class RemoteMessage {
 
     @Serializable
     @SerialName("GetVideoDurationResponse")
-    data class GetVideoDurationResponse(val positionMs: Long) : RemoteMessage()
+    data class GetVideoDurationResponse(val requestId: String, val positionMs: Long) :
+        RemoteMessage()
 
+    @Serializable
+    @SerialName("AckResponse")
+    data class AckResponse(
+        val requestId: String,
+        val command: String,
+    ) : RemoteMessage()
 
     @Serializable
     @SerialName("ErrorResponse")
-    data class ErrorResponse(val command: RemoteCommand?, val errorCode: RemoteErrorCode) : RemoteMessage()
+    data class ErrorResponse(
+        val requestId: String?,
+        val command: String,
+        val errorCode: RemoteErrorCode,
+        val errorMessage: String? = null,
+    ) : RemoteMessage()
 
 
     //notify usage messages

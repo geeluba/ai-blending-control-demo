@@ -16,7 +16,7 @@ class RemoteControlViewModel : ViewModel() {
     private val TAG = "Projector:RemoteVM"
 
     // !!! IMPORTANT: Update this IP to your server device !!!
-    private val serverIp = "172.25.112.181"
+    private val serverIp = "172.25.112.210"
 
     // The Ktor WebSocket client
     private val remoteClient = RemoteControlClient(viewModelScope)
@@ -60,6 +60,7 @@ class RemoteControlViewModel : ViewModel() {
                 //Log.d(TAG, "Received message: $message")
                 when (message) {
                     is RemoteMessage.GetVideoInfoResponse -> {
+                        Log.d(TAG, "Received video info with requestId: ${message.requestId}")
                         _durationMs.value = message.durationMs
                         _currentPositionMs.value = message.positionMs
                         _isPlaying.value = message.isPlaying
@@ -67,6 +68,7 @@ class RemoteControlViewModel : ViewModel() {
 
                     is RemoteMessage.GetVideoDurationResponse -> {
                         // Note: Per your RemoteMessage.kt, this only contains position.
+                        Log.d(TAG, "Received video duration with requestId: ${message.requestId}")
                         _currentPositionMs.value = message.positionMs
                     }
 
@@ -75,26 +77,24 @@ class RemoteControlViewModel : ViewModel() {
                     }
 
                     is RemoteMessage.NotifyVideoPlayState -> {
+                        Log.d(TAG, "Received play state update: isPlaying=${message.isPlaying}")
                         _isPlaying.value = message.isPlaying
                     }
 
-                    is RemoteMessage.ErrorResponse -> {
-                        if (message.errorCode != RemoteMessage.RemoteErrorCode.NO_ERROR) {
-                            Log.e(
-                                TAG,
-                                "Received error from server: ${message.errorCode} " +
-                                        "for request: ${message.errorCode}"
-                            )
-                            //todo: Handle errors appropriately in the UI
-                        } else {
-                            // NO_ERROR is just a success ACK
-                            //how to print simple name of message.command
+                    is RemoteMessage.AckResponse -> {
+                        Log.d(
+                            TAG,
+                            "Received ACK for command: ${message.command.javaClass.simpleName} with requestId: ${message.requestId}"
+                        )
+                    }
 
-                            Log.d(
-                                TAG,
-                                "Received Successful for command: ${message.command?.javaClass?.simpleName}"
-                            )
-                        }
+                    is RemoteMessage.ErrorResponse -> {
+                        Log.e(
+                            TAG,
+                            "Received error from server: error code: ${message.errorCode}, cmd = ${message.javaClass.simpleName}" +
+                                    "for request: ${message.requestId}"
+                        )
+                        //todo: Handle errors appropriately in the UI
                     }
                 }
             }

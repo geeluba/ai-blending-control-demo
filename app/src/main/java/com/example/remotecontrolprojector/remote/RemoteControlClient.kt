@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -65,6 +66,17 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
         ignoreUnknownKeys = true
         classDiscriminator = "commandType"
     }
+
+    /**
+     * Used to generate unique, incrementing IDs for each request.
+     * This is thread-safe.
+     */
+    private val requestIdCounter = AtomicLong(0)
+
+    /**
+     * Gets the next unique request ID as a string.
+     */
+    private fun getNextRequestId(): String = requestIdCounter.incrementAndGet().toString()
 
     /**
      * Starts the client's connection loop to connect to the remote server.
@@ -230,22 +242,30 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
     // --- Public API for Sending Commands (Unchanged) ---
 
     fun getVideoInfo() {
-        send(RemoteCommand.GetVideoInfoRequest)
+        val command = RemoteCommand.GetVideoInfoRequest(requestId = getNextRequestId())
+        send(command)
     }
 
     fun getVideoDuration() {
-        send(RemoteCommand.GetVideoDurationRequest)
+        val command = RemoteCommand.GetVideoDurationRequest(requestId = getNextRequestId())
+        send(command)
     }
 
     fun sendPlay() {
-        send(RemoteCommand.VideoPlayRequest)
+        val command = RemoteCommand.VideoPlayRequest(requestId = getNextRequestId())
+        send(command)
     }
 
     fun sendPause() {
-        send(RemoteCommand.VideoPauseRequest)
+        val command = RemoteCommand.VideoPauseRequest(requestId = getNextRequestId())
+        send(command)
     }
 
     fun sendSeek(positionMs: Long) {
-        send(RemoteCommand.VideoSeekRequest(positionMs))
+        val command = RemoteCommand.VideoSeekRequest(
+            requestId = getNextRequestId(),
+            positionMs = positionMs
+        )
+        send(command)
     }
 }
