@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "com.example.remotecontrolprojector"
     compileSdk = 36
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         applicationId = "com.example.remotecontrolprojector"
@@ -16,6 +17,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+
     }
 
     buildTypes {
@@ -34,6 +40,9 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    buildFeatures {
+        viewBinding = true
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -44,6 +53,14 @@ android {
             excludes += "META-INF/kotlin.kotlin_builtins"
             excludes += "META-INF/kotlin-versions.component"
             excludes += "module-info.class"
+        }
+    }
+    externalNativeBuild {
+        externalNativeBuild {
+            cmake {
+                path = File("src/main/cpp/CMakeLists.txt")
+                version = "3.22.1"
+            }
         }
     }
 }
@@ -75,6 +92,10 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.10")
     // Logging (Ktor uses SLF4J)
     implementation("org.slf4j:slf4j-simple:2.0.7")
+
+    //navigation
+    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
+    implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
 }

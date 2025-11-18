@@ -3,4 +3,11 @@
     <string name="play">Play</string>
     <string name="resume">Resume</string>
     <string name="pause">Pause</string>
+    <string name="pairing_with_ggwave">Pairing with GWave</string>
+    <string name="image">Image</string>
+    <string name="video">Video</string>
+    <string name="projector_1">Project 1</string>
+    <string name="projector_2">Project 2</string>
+    <string name="permission_check">Please grant the required permissions in Settings to proceed.</string>
+    <string name="blending">blending</string>
 </resources>

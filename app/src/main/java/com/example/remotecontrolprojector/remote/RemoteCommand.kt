@@ -11,6 +11,28 @@ sealed class RemoteCommand {
 
     abstract val requestId: String
 
+    @Serializable
+    @SerialName("StartDiscoveryRequest")
+    data class StartDiscoveryRequest(
+        override val requestId: String,
+        val targetDeviceName: String,
+    ) : RemoteCommand()
+
+    @Serializable
+    @SerialName("BlendingModeRequest")
+    data class BlendingModeRequest(
+        override val requestId: String,
+        val mode: BlendingMode,
+        val isController: Boolean,
+    ) : RemoteCommand()
+
+    enum class BlendingMode {
+        NONE,
+        STANDBY,
+        IMAGE,
+        VIDEO
+    }
+
     // --- Info Requests ---
     @Serializable
     @SerialName("GetVideoInfoRequest")
@@ -34,4 +56,16 @@ sealed class RemoteCommand {
     @SerialName("VideoSeekRequest")
     data class VideoSeekRequest(override val requestId: String, val positionMs: Long) :
         RemoteCommand()
+
+    @Serializable
+    @SerialName("ImagePlayRequest")
+    data class ImagePlayRequest(override val requestId: String) : RemoteCommand()
+
+    @Serializable
+    @SerialName("ImagePauseRequest")
+    data class ImagePauseRequest(override val requestId: String) : RemoteCommand()
+
+    @Serializable
+    @SerialName("GetImageInfoRequest")
+    data class GetImageInfoRequest(override val requestId: String) : RemoteCommand()
 }

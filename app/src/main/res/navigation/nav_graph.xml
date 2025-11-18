@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/pairingFragment">
+
+    <fragment
+        android:id="@+id/pairingFragment"
+        android:name="com.example.remotecontrolprojector.pairing.PairingFragment"
+        android:label="PairingFragment"
+        tools:layout="@layout/fragment_pairing">
+
+        <action
+            android:id="@+id/action_pairing_to_showcase"
+            app:destination="@id/showcaseSelectionFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/showcaseSelectionFragment"
+        android:name="com.example.remotecontrolprojector.showcase.ShowcaseSelectionFragment"
+        android:label="ShowcaseSelectionFragment"
+        tools:layout="@layout/fragment_showcase_selection">
+
+        <action
+            android:id="@+id/action_showcase_to_image"
+            app:destination="@id/imageBlendingFragment" />
+
+        <action
+            android:id="@+id/action_showcase_to_video"
+            app:destination="@id/videoBlendingFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/imageBlendingFragment"
+        android:name="com.example.remotecontrolprojector.image.ImageBlendingFragment"
+        android:label="ImageBlendingFragment"
+        tools:layout="@layout/fragment_image"></fragment>
+
+    <fragment
+        android:id="@+id/videoBlendingFragment"
+        android:name="com.example.remotecontrolprojector.video.VideoBlendingFragment"
+        android:label="VideoBlendingFragment"
+        tools:layout="@layout/fragment_video"></fragment>
+
+</navigation>

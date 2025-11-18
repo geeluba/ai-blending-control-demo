@@ -1,16 +1,28 @@
 package com.example.remotecontrolprojector.remote
 
 import android.util.Log
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
-import io.ktor.websocket.*
-import kotlinx.coroutines.*
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.WebSocketSession
+import io.ktor.websocket.close
+import io.ktor.websocket.readText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -49,6 +61,10 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState
 
+    val isConnected: StateFlow<Boolean> = _connectionState
+        .map { it == ConnectionState.CONNECTED }
+        .stateIn(managerScope, SharingStarted.Eagerly, false)
+
     /**
      * Emits [RemoteMessage] objects received from the server.
      * These are responses to requests or unsolicited notifications.
@@ -59,7 +75,10 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
     // --- (Ktor & Serialization Setup) ---
 
     private val httpClient = HttpClient(CIO) {
-        install(WebSockets)
+        //HttpClientConfig.install(WebSockets.Plugin)
+        install(WebSockets) {
+            pingInterval = 20_000 // Optional: Ping every 20 seconds to keep connection alive
+        }
     }
 
     private val json = Json {
@@ -240,6 +259,27 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
     }
 
     // --- Public API for Sending Commands (Unchanged) ---
+    fun sendDiscoveryAndConnect(targetDeviceName: String) {
+        val command = RemoteCommand.StartDiscoveryRequest(
+            requestId = getNextRequestId(),
+            targetDeviceName = targetDeviceName
+        )
+        send(command)
+    }
+
+    fun sendBlendingMode(mode: RemoteCommand.BlendingMode, isController: Boolean = true) {
+        val command = RemoteCommand.BlendingModeRequest(
+            requestId = getNextRequestId(),
+            mode = mode,
+            isController = isController
+        )
+        send(command)
+    }
+
+    fun getImageInfo() {
+        val command = RemoteCommand.GetImageInfoRequest(requestId = getNextRequestId())
+        send(command)
+    }
 
     fun getVideoInfo() {
         val command = RemoteCommand.GetVideoInfoRequest(requestId = getNextRequestId())
@@ -266,6 +306,16 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
             requestId = getNextRequestId(),
             positionMs = positionMs
         )
+        send(command)
+    }
+
+    fun startSlideshow() {
+        val command = RemoteCommand.ImagePlayRequest(requestId = getNextRequestId())
+        send(command)
+    }
+
+    fun pauseSlideshow() {
+        val command = RemoteCommand.ImagePauseRequest(requestId = getNextRequestId())
         send(command)
     }
 }

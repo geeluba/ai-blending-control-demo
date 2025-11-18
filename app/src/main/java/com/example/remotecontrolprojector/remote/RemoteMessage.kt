@@ -40,6 +40,14 @@ sealed class RemoteMessage {
         RemoteMessage()
 
     @Serializable
+    @SerialName("GetImageInfoResponse")
+    data class GetImageInfoResponse(
+        val requestId: String,
+        val currentIndex: Int,
+        val isPlaying: Boolean,
+    ) : RemoteMessage()
+
+    @Serializable
     @SerialName("AckResponse")
     data class AckResponse(
         val requestId: String,
@@ -58,10 +66,21 @@ sealed class RemoteMessage {
 
     //notify usage messages
     @Serializable
+    @SerialName("NotifyPeerConnectionDone")
+    data class NotifyPeerConnectionDone(val status: Boolean) : RemoteMessage()
+    @Serializable
     @SerialName("NotifyVideoPosition")
     data class NotifyVideoPosition(val positionMs: Long) : RemoteMessage()
 
     @Serializable
     @SerialName("NotifyVideoPlayState")
     data class NotifyVideoPlayState(val isPlaying: Boolean) : RemoteMessage()
+
+    @Serializable
+    @SerialName("NotifyImagePlayState")
+    data class NotifyImagePlayState(val isPlaying: Boolean) : RemoteMessage()
+
+    @Serializable
+    @SerialName("NotifyImageIndex")
+    data class NotifyImageIndex(val currentIndex: Int) : RemoteMessage()
 }
