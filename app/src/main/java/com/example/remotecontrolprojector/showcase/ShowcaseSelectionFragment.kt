@@ -31,6 +31,7 @@ class ShowcaseSelectionFragment : Fragment() {
     private var leftIp: String? = null
     private var rightIp: String? = null
     private var rightDeviceName: String? = null
+    private var rightMacAddress: String? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -53,7 +54,7 @@ class ShowcaseSelectionFragment : Fragment() {
 
         leftIp = arguments?.getString("leftIp")
         rightIp = arguments?.getString("rightIp")
-        rightDeviceName = arguments?.getString("rightDeviceName")
+        rightMacAddress = arguments?.getString("rightMacAddress")
 
         setupObservers()
         setupListeners()
@@ -67,7 +68,7 @@ class ShowcaseSelectionFragment : Fragment() {
                 activity?.serviceFlow?.collectLatest { service ->
                     Log.d(TAG, "Service connected in ShowcaseSelectionFragment")
                     viewModel.setService(service)
-                    viewModel.initializeAndConnect(leftIp, rightIp, rightDeviceName)
+                    viewModel.initializeAndConnect(leftIp, rightIp, rightMacAddress)
                 }
             }
         }

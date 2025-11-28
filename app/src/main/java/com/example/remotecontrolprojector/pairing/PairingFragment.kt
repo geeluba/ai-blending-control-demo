@@ -168,11 +168,11 @@ class PairingFragment : Fragment() {
                     }
                 }
                 launch {
-                    viewModel.navigationEvent.collectLatest { (leftIp, rightIp, rightName) ->
+                    viewModel.navigationEvent.collectLatest { (leftIp, rightIp, rightMac) ->
                         val bundle = Bundle().apply {
                             putString("leftIp", leftIp)
                             putString("rightIp", rightIp)
-                            putString("rightDeviceName", rightName)
+                            putString("rightMacAddress", rightMac)
                         }
                         //tear down all ble connections, since the remote control will use wifi from now on
                         viewModel.disconnectAllDevices()

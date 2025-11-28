@@ -19,6 +19,8 @@ class ShowcaseSelectionViewModel : ViewModel() {
 
     private var service: RemoteService? = null
 
+    private var targetRightMacAddress: String? = null
+    private var hasSentConnectionRequest = false
     private var targetRightDeviceName: String? = null
     private var hasSentDiscoveryRequest = false
 
@@ -51,14 +53,13 @@ class ShowcaseSelectionViewModel : ViewModel() {
                     left && right
                 }.collect { bothWebSocketsConnected ->
 
-                    // Trigger Discovery Logic (Depends only on WebSockets being ready)
-                    if (bothWebSocketsConnected && !hasSentDiscoveryRequest && targetRightDeviceName != null) {
+                    if (bothWebSocketsConnected && !hasSentConnectionRequest && targetRightMacAddress != null) {
                         Log.i(
                             TAG,
                             "WebSockets connected. Sending StartDiscoveryRequest to LEFT projector with RIGHT name: $targetRightDeviceName"
                         )
-                        sendDiscoveryRequestToLeft(targetRightDeviceName!!)
-                        hasSentDiscoveryRequest = true
+                        sendDirectConnectRequest(targetRightMacAddress!!)
+                        hasSentConnectionRequest = true
                     }
                 }
             }
@@ -78,8 +79,8 @@ class ShowcaseSelectionViewModel : ViewModel() {
         }
     }
 
-    fun initializeAndConnect(leftIp: String?, rightIp: String?, rightName: String?) {
-        this.targetRightDeviceName = rightName
+    fun initializeAndConnect(leftIp: String?, rightIp: String?, rightMac: String?) {
+        this.targetRightMacAddress = rightMac
         Log.d(TAG, "connectClients: leftIp = $leftIp, rightIp = $rightIp")
         if (!leftIp.isNullOrEmpty()) {
             service?.binder?.connectLeftClient(leftIp)
@@ -96,6 +97,10 @@ class ShowcaseSelectionViewModel : ViewModel() {
 
     private fun sendDiscoveryRequestToLeft(targetName: String) {
         service?.binder?.getLeftClient()?.sendDiscoveryAndConnect(targetName)
+    }
+
+    private fun sendDirectConnectRequest(targetMac: String) {
+        service?.binder?.getLeftClient()?.sendDirectConnectRequest(targetMac)
     }
 
     fun informRemoteClientsBlendingMode(mode: RemoteCommand.BlendingMode) {

@@ -79,7 +79,7 @@ class PairingViewModel : ViewModel() {
                 if (leftIp != null && rightIp != null && !_isNavigationInitiated.value) {
                     _isNavigationInitiated.value = true
 
-                    val rightMac = _rightDeviceAddress.value
+                    val rightMac = _rightDeviceAddress.value ?: ""
                     // Try to get name from ScanRecord (Advertised name)
                     // fallback to Device Cache, fallback to Default
                     val rightDeviceName =
@@ -92,7 +92,7 @@ class PairingViewModel : ViewModel() {
                         "--- Navigation Event Fired. Target Right Name: $rightDeviceName ---"
                     )
                     viewModelScope.launch {
-                        _navigationEvent.emit(Triple(leftIp, rightIp, rightDeviceName))
+                        _navigationEvent.emit(Triple(leftIp, rightIp, rightMac))
                     }
                 }
             }

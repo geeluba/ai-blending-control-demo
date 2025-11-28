@@ -259,6 +259,14 @@ class RemoteControlClient(private val managerScope: CoroutineScope) {
     }
 
     // --- Public API for Sending Commands (Unchanged) ---
+    fun sendDirectConnectRequest(targetMacAddress: String) {
+        val command = RemoteCommand.ConnectToMacRequest(
+            requestId = getNextRequestId(),
+            targetMacAddress = targetMacAddress
+        )
+        send(command)
+    }
+
     fun sendDiscoveryAndConnect(targetDeviceName: String) {
         val command = RemoteCommand.StartDiscoveryRequest(
             requestId = getNextRequestId(),

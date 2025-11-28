@@ -26,6 +26,7 @@ class SyncBluetoothManager(context: Context, scope: CoroutineScope) :
     BaseCommunicationManager(scope) {
 
     override val TAG = "Projector:BleClient"
+    private val TARGET_MTU = 185
 
     private val SYNC_SERVICE_UUID = UUID.fromString("a9422624-7662-471d-bba5-706b53e78ac6")
     private val C2S_COMMAND_CHARACTERISTIC_UUID =
@@ -332,7 +333,7 @@ class SyncBluetoothManager(context: Context, scope: CoroutineScope) :
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 managerScope.launch(Dispatchers.Main) {
                     delay(50)
-                    gatt.requestMtu(517)
+                    gatt.requestMtu(TARGET_MTU)
                 }
             } else {
                 disconnectDevice(gatt.device.address)
@@ -340,6 +341,7 @@ class SyncBluetoothManager(context: Context, scope: CoroutineScope) :
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            Log.d(TAG, "MTU changed to $mtu for ${gatt.device.address} (Status $status)")
             val service = gatt.getService(SYNC_SERVICE_UUID)
             if (service == null) {
                 disconnectDevice(gatt.device.address)

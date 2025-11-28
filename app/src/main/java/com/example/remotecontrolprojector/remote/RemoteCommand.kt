@@ -12,6 +12,13 @@ sealed class RemoteCommand {
     abstract val requestId: String
 
     @Serializable
+    @SerialName("ConnectToMacRequest")
+    data class ConnectToMacRequest(
+        override val requestId: String,
+        val targetMacAddress: String
+    ) : RemoteCommand()
+
+    @Serializable
     @SerialName("StartDiscoveryRequest")
     data class StartDiscoveryRequest(
         override val requestId: String,
