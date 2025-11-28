@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.remotecontrolprojector.RemoteService
 import com.example.remotecontrolprojector.remote.RemoteCommand
 import com.example.remotecontrolprojector.remote.RemoteMessage
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +21,6 @@ class ShowcaseSelectionViewModel : ViewModel() {
     private var targetRightMacAddress: String? = null
     private var hasSentConnectionRequest = false
     private var targetRightDeviceName: String? = null
-    private var hasSentDiscoveryRequest = false
 
     // State to control UI enablement (buttons active only if both projectors connected)
     private val _isPeerPaired = MutableStateFlow(false)
@@ -95,9 +93,9 @@ class ShowcaseSelectionViewModel : ViewModel() {
         service?.binder?.disconnectAllClients(delayMs)
     }
 
-    private fun sendDiscoveryRequestToLeft(targetName: String) {
-        service?.binder?.getLeftClient()?.sendDiscoveryAndConnect(targetName)
-    }
+    //private fun sendDiscoveryRequestToLeft(targetName: String) {
+    //    service?.binder?.getLeftClient()?.sendDiscoveryAndConnect(targetName)
+    //}
 
     private fun sendDirectConnectRequest(targetMac: String) {
         service?.binder?.getLeftClient()?.sendDirectConnectRequest(targetMac)
@@ -112,7 +110,7 @@ class ShowcaseSelectionViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         Log.d(TAG, "onCleared")
-        hasSentDiscoveryRequest = false
+        hasSentConnectionRequest = false
         informRemoteClientsBlendingMode(RemoteCommand.BlendingMode.NONE)
         disconnectClients(300)
     }

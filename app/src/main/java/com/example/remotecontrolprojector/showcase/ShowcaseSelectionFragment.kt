@@ -1,11 +1,13 @@
 package com.example.remotecontrolprojector.showcase
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -16,6 +18,8 @@ import com.example.remotecontrolprojector.R
 import com.example.remotecontrolprojector.RemoteControlActivity
 import com.example.remotecontrolprojector.databinding.FragmentShowcaseSelectionBinding
 import com.example.remotecontrolprojector.remote.RemoteCommand
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -32,6 +36,8 @@ class ShowcaseSelectionFragment : Fragment() {
     private var rightIp: String? = null
     private var rightDeviceName: String? = null
     private var rightMacAddress: String? = null
+
+    private var connectionTimeoutJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -56,8 +62,44 @@ class ShowcaseSelectionFragment : Fragment() {
         rightIp = arguments?.getString("rightIp")
         rightMacAddress = arguments?.getString("rightMacAddress")
 
+        setLoadingState(true, getString(R.string.projectors_pairing_up))
+        startConnectionTimeoutTimer()
+
         setupObservers()
         setupListeners()
+    }
+
+    private fun startConnectionTimeoutTimer() {
+        connectionTimeoutJob?.cancel()
+        connectionTimeoutJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(PAIRING_TIMEOUT_MS) // 10 seconds delay
+            if (!viewModel.areProjectorsConnected.value) {
+                Log.w(TAG, "Connection timeout reached (10s).")
+                viewModel.disconnectClients(0)
+                setLoadingState(false)
+                showTimeoutDialog()
+            }
+        }
+    }
+
+    private fun showTimeoutDialog() {
+        if (!isAdded) return
+        AlertDialog.Builder(requireContext())
+            .setTitle("Connection Timeout")
+            .setMessage(getString(R.string.faild_to_connect_two_projectors))
+            .setCancelable(false)
+            .setPositiveButton(getString(R.string.ok)) { _, _ ->
+                findNavController().popBackStack()
+            }
+            .show()
+    }
+
+    private fun setLoadingState(isLoading: Boolean, message: String = "") {
+        if (_binding == null) return
+        binding.loadingOverlay.isVisible = isLoading
+        if (isLoading) {
+            binding.loadingText.text = message
+        }
     }
 
     private fun setupObservers() {
@@ -86,6 +128,7 @@ class ShowcaseSelectionFragment : Fragment() {
 
                     if (connected) {
                         Log.d(TAG, "Both projectors connected, buttons enabled")
+                        setLoadingState(false)
                         viewModel.informRemoteClientsBlendingMode(RemoteCommand.BlendingMode.STANDBY)
                     }
                 }
@@ -128,6 +171,11 @@ class ShowcaseSelectionFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         Log.d(TAG, "onDestroyView")
+        connectionTimeoutJob?.cancel()
         _binding = null
+    }
+
+    companion object {
+        const val PAIRING_TIMEOUT_MS = 10000L
     }
 }

@@ -10,4 +10,7 @@
     <string name="projector_2">Project 2</string>
     <string name="permission_check">Please grant the required permissions in Settings to proceed.</string>
     <string name="blending">blending</string>
+    <string name="projectors_pairing_up">Projectors Pairing Up...</string>
+    <string name="faild_to_connect_two_projectors">Failed to connect to both projectors within 10 seconds. Please check the devices and try again.</string>
+    <string name="ok">Ok</string>
 </resources>
